@@ -1,0 +1,7 @@
+# secrets and local state
+.device-token
+*.sqlite
+.cache/
+
+# stray process output
+nohup.out
