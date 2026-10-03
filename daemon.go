@@ -108,17 +108,23 @@ func sendRun(mdx *Client, s *store) error {
 	}
 
 	ctx := context.Background()
+	totalSent := 0
+	start := time.Now()
+	defer func() {
+		slog.Info("run done", "took", time.Since(start).Round(time.Millisecond), "sent", totalSent)
+	}()
 	for _, sub := range subs {
 		chapters, err := mdx.FetchFeed(ctx, sub.mangaID)
+		recent, sent := 0, 0
 		if err != nil {
 			slog.Error("feed failed", "series", sub.name, "err", err)
-			continue
 		}
 		for _, ch := range chapters {
 			ch.SeriesName = sub.name
 			if time.Since(ch.PublishedAt) > sendWindow {
 				continue
 			}
+			recent++
 			seen, err := s.sentExists(ch.ID, ch.Version)
 			if err != nil {
 				return fmt.Errorf("sent lookup: %w", err)
@@ -131,10 +137,14 @@ func sendRun(mdx *Client, s *store) error {
 				slog.Error("send failed, will retry next run", "chapter", ch.ID, "err", err)
 				continue
 			}
+			slog.Info("chapter sent", "series", sub.name, "name", documentName(ch), "pages", ch.Pages, "version", ch.Version)
+			sent++
 			if err := s.markSent(ch.ID, ch.Version); err != nil {
 				return fmt.Errorf("mark sent: %w", err)
 			}
 		}
+		slog.Info("series scanned", "series", sub.name, "chapters", len(chapters), "recent", recent, "sent", sent)
+		totalSent += sent
 	}
 	return nil
 }
