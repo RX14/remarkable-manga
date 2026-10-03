@@ -9,7 +9,7 @@ nohup.out
 # makepkg artifacts
 src/
 pkg/
-*.pkg.tar.*
+*.pkg.tar*
 
 # build output
 /remarkable-manga
