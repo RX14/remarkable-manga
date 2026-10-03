@@ -5,3 +5,11 @@
 
 # stray process output
 nohup.out
+
+# makepkg artifacts
+src/
+pkg/
+*.pkg.tar.*
+
+# build output
+/remarkable-manga

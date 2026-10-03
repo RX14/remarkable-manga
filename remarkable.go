@@ -49,7 +49,7 @@ func registerDevice(code string) (string, error) {
 func connect() (api.ApiCtx, error) {
 	dev := os.Getenv(deviceTokenEnv)
 	if dev == "" {
-		return nil, fmt.Errorf("no device token in %s — run: mdxrm auth <code>", deviceTokenEnv)
+		return nil, fmt.Errorf("no device token in %s — run: remarkable-manga auth <code>", deviceTokenEnv)
 	}
 	http := transport.CreateHttpClientCtx(model.AuthTokens{DeviceToken: dev})
 
@@ -90,7 +90,7 @@ func ensureDir(ctx api.ApiCtx, name string) (string, error) {
 // file is named for the document. Creates a new document unconditionally —
 // duplicates are acceptable, overwrites never happen.
 func uploadPDF(ctx api.ApiCtx, parent, name string, pdf []byte) (string, error) {
-	dir, err := os.MkdirTemp("", "mdxrm")
+	dir, err := os.MkdirTemp("", "remarkable-manga")
 	if err != nil {
 		return "", err
 	}

@@ -27,7 +27,7 @@ const pageHTML = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>mdxrm</title>
+<title>remarkable-manga</title>
 <style>
   :root { color-scheme: light dark; }
   body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
@@ -46,7 +46,7 @@ const pageHTML = `<!doctype html>
 </style>
 </head>
 <body>
-<h1>mdxrm — subscriptions</h1>
+<h1>remarkable-manga — subscriptions</h1>
 <form class="search" action="/search" method="get">
   <input name="q" value="{{.Query}}" placeholder="Search MangaDex" required>
   <button name="mode" value="title">Titles</button>

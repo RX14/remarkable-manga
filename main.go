@@ -1,4 +1,4 @@
-// mdxrm daemon: watches subscriptions, sends new chapters to the reMarkable,
+// remarkable-manga daemon: watches subscriptions, sends new chapters to the reMarkable,
 // and serves the subscription web UI.
 package main
 
@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	dbPath := flag.String("db", "mdxrm.sqlite", "state database")
+	dbPath := flag.String("db", "remarkable-manga.sqlite", "state database")
 	addr := flag.String("addr", "127.0.0.1:8080", "HTTP listen address")
 	flag.Parse()
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo})))

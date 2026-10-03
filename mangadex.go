@@ -18,7 +18,7 @@ const mangadexAPI = "https://api.mangadex.org"
 
 // userAgent is sent on every request. MangaDex requires a non-spoofed User-Agent
 // on all requests (docs: Limitations and Requirements).
-const userAgent = "mdxrm/0.1 (personal manga-to-reMarkable tool)"
+const userAgent = "remarkable-manga/0.1 (personal manga-to-reMarkable tool)"
 
 // Chapter is the subset of MangaDex chapter metadata we consume.
 type Chapter struct {

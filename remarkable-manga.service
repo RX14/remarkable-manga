@@ -1,0 +1,35 @@
+[Unit]
+Description=remarkable-manga — MangaDex chapters to reMarkable
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=remarkable-manga
+Group=remarkable-manga
+
+WorkingDirectory=/var/lib/remarkable-manga
+ExecStart=/usr/bin/remarkable-manga -db /var/lib/remarkable-manga/db.sqlite -addr 127.0.0.1:8080
+# /etc/remarkable-manga.conf holds REMARKABLE_DEVICE_TOKEN (0600 root:remarkable-manga)
+EnvironmentFile=-/etc/remarkable-manga.conf
+Environment=XDG_CACHE_HOME=/var/cache/remarkable-manga
+
+Restart=on-failure
+RestartSec=30
+
+# Sandboxing
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+StateDirectory=remarkable-manga
+CacheDirectory=remarkable-manga
+
+[Install]
+WantedBy=multi-user.target

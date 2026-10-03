@@ -1,4 +1,4 @@
-module mdxrm
+module github.com/RX14/remarkable-manga
 
 go 1.27
 
