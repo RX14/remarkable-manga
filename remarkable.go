@@ -85,10 +85,11 @@ func ensureDir(ctx api.ApiCtx, name string) (string, error) {
 	return doc.ID, nil
 }
 
-// uploadPDF uploads the PDF bytes under parent. UploadDocument takes the
-// document's visible name from the file name (util.DocPathToName), so the temp
-// file is named for the document. Creates a new document unconditionally —
-// duplicates are acceptable, overwrites never happen.
+// uploadPDF uploads the PDF bytes under parent, replacing any document of the
+// same name: same name means the same chapter release at an older revision, so
+// the tablet ends up with exactly one copy — the newest. (UploadDocument takes
+// the visible name from the file name (util.DocPathToName), so the temp file is
+// named for the document.)
 func uploadPDF(ctx api.ApiCtx, parent, name string, pdf []byte) (string, error) {
 	dir, err := os.MkdirTemp("", "remarkable-manga")
 	if err != nil {
@@ -99,6 +100,15 @@ func uploadPDF(ctx api.ApiCtx, parent, name string, pdf []byte) (string, error) 
 	path := filepath.Join(dir, name+".pdf")
 	if err := os.WriteFile(path, pdf, 0o644); err != nil {
 		return "", err
+	}
+	// Clear every same-name copy first: the name encodes chapter + series +
+	// scanlators, so a match is this release's older revision (possibly a pile).
+	for _, n := range ctx.Filetree().NodeById(parent).Nodes() {
+		if n.Document != nil && n.Document.Type == model.DocumentType && n.Document.Name == name {
+			if err := ctx.DeleteEntry(n, false, true); err != nil {
+				return "", fmt.Errorf("remove stale %q: %w", name, err)
+			}
+		}
 	}
 	doc, err := ctx.UploadDocument(parent, path, true, nil, nil, nil, nil)
 	if err != nil {

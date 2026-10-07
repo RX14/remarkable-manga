@@ -28,7 +28,8 @@ type Chapter struct {
 	Pages       int    // page count the release declares
 	Version     int    // entity edit counter; bumps when an upload is fixed in place
 	PublishedAt time.Time
-	SeriesName  string // localized series title, see pickTitle
+	SeriesName  string   // localized series title, see pickTitle
+	Groups      []string // scanlation group names; empty when none
 }
 
 // Client talks to the MangaDex API.
@@ -208,13 +209,19 @@ func pickTitle(title map[string]string, altTitles []map[string]string) string {
 	return ""
 }
 
-// documentName is the on-device document name: "CH12 Series Name", or just the
-// series name when the release has no chapter number.
+// documentName is the on-device document name: "CH12 Series Name (Group)" —
+// the series name alone when the release has no chapter number, the scanlation
+// group label only when the release has one. Same name = the same release's
+// older revision (replaced on upload); different groups = different names (kept).
 func documentName(ch Chapter) string {
-	if ch.Chapter == "" {
-		return ch.SeriesName
+	name := ch.SeriesName
+	if ch.Chapter != "" {
+		name = "CH" + ch.Chapter + " " + ch.SeriesName
 	}
-	return "CH" + ch.Chapter + " " + ch.SeriesName
+	if len(ch.Groups) > 0 {
+		name += " (" + strings.Join(ch.Groups, ", ") + ")"
+	}
+	return name
 }
 
 // FetchPageURLs resolves a chapter's page download URLs at original quality
@@ -327,6 +334,7 @@ func (c *Client) FetchFeed(ctx context.Context, mangaID string) ([]Chapter, erro
 	q.Set("limit", "50") // a week of releases, with room for batch drops
 	q.Set("order[publishAt]", "desc")
 	q.Add("translatedLanguage[]", "en")
+	q.Add("includes[]", "scanlation_group")
 
 	var raw struct {
 		Data []struct {
@@ -338,6 +346,12 @@ func (c *Client) FetchFeed(ctx context.Context, mangaID string) ([]Chapter, erro
 				Version   int       `json:"version"`
 				PublishAt time.Time `json:"publishAt"`
 			} `json:"attributes"`
+			Relationships []struct {
+				Type       string `json:"type"`
+				Attributes struct {
+					Name string `json:"name"`
+				} `json:"attributes"`
+			} `json:"relationships"`
 		} `json:"data"`
 	}
 	endpoint := "/manga/" + url.PathEscape(mangaID) + "/feed"
@@ -346,7 +360,7 @@ func (c *Client) FetchFeed(ctx context.Context, mangaID string) ([]Chapter, erro
 	}
 	chapters := make([]Chapter, len(raw.Data))
 	for i, d := range raw.Data {
-		chapters[i] = Chapter{
+		ch := Chapter{
 			ID:          d.ID,
 			Chapter:     d.Attributes.Chapter,
 			Title:       d.Attributes.Title,
@@ -354,6 +368,12 @@ func (c *Client) FetchFeed(ctx context.Context, mangaID string) ([]Chapter, erro
 			Version:     d.Attributes.Version,
 			PublishedAt: d.Attributes.PublishAt,
 		}
+		for _, rel := range d.Relationships {
+			if rel.Type == "scanlation_group" {
+				ch.Groups = append(ch.Groups, rel.Attributes.Name)
+			}
+		}
+		chapters[i] = ch
 	}
 	return chapters, nil
 }
