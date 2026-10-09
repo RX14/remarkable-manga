@@ -13,6 +13,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/juruen/rmapi/api"
@@ -159,11 +160,15 @@ func sendChapter(ctx context.Context, mdx *Client, rm api.ApiCtx, parent string,
 	if err != nil {
 		return err
 	}
+	// Pages go into the PDF in reverse: the tablet then reads forward with the
+	// backward gesture (the natural RTL motion), and new uploads open at the
+	// last page — the story's first.
+	slices.Reverse(pages)
 	pdf, err := wrapPDF(ctx, pages)
 	if err != nil {
 		return err
 	}
-	_, err = uploadPDF(rm, parent, documentName(ch), pdf)
+	_, err = uploadPDF(rm, parent, documentName(ch), pdf, len(pages))
 	return err
 }
 

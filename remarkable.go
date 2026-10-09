@@ -85,12 +85,13 @@ func ensureDir(ctx api.ApiCtx, name string) (string, error) {
 	return doc.ID, nil
 }
 
-// uploadPDF uploads the PDF bytes under parent, replacing any document of the
-// same name: same name means the same chapter release at an older revision, so
-// the tablet ends up with exactly one copy — the newest. (UploadDocument takes
-// the visible name from the file name (util.DocPathToName), so the temp file is
-// named for the document.)
-func uploadPDF(ctx api.ApiCtx, parent, name string, pdf []byte) (string, error) {
+// uploadPDF uploads the PDF bytes under parent. A same-name document is the
+// same chapter release's older revision, so its file is swapped in place —
+// rmapi's replace semantics — and the document survives with its reading
+// position, annotations, star and tags. (UploadDocument takes the visible name
+// from the file name (util.DocPathToName), so the temp file is named for the
+// document.)
+func uploadPDF(ctx api.ApiCtx, parent, name string, pdf []byte, numPages int) (string, error) {
 	dir, err := os.MkdirTemp("", "remarkable-manga")
 	if err != nil {
 		return "", err
@@ -101,18 +102,43 @@ func uploadPDF(ctx api.ApiCtx, parent, name string, pdf []byte) (string, error) 
 	if err := os.WriteFile(path, pdf, 0o644); err != nil {
 		return "", err
 	}
-	// Clear every same-name copy first: the name encodes chapter + series +
-	// scanlators, so a match is this release's older revision (possibly a pile).
+	var matches []*model.Node
 	for _, n := range ctx.Filetree().NodeById(parent).Nodes() {
 		if n.Document != nil && n.Document.Type == model.DocumentType && n.Document.Name == name {
-			if err := ctx.DeleteEntry(n, false, true); err != nil {
-				return "", fmt.Errorf("remove stale %q: %w", name, err)
-			}
+			matches = append(matches, n)
 		}
 	}
-	doc, err := ctx.UploadDocument(parent, path, true, nil, nil, nil, nil)
-	if err != nil {
-		return "", fmt.Errorf("upload %q: %w", name, err)
+
+	if len(matches) == 0 {
+		// New uploads open at the last PDF page — with the pages stored in
+		// reverse that is the story's first page. (rmapi's --currentpage
+		// couples currentPage and pageCount; mirror that.)
+		currentPage := numPages - 1
+		doc, err := ctx.UploadDocument(parent, path, true, nil, &currentPage, &numPages, nil)
+		if err != nil {
+			return "", fmt.Errorf("upload %q: %w", name, err)
+		}
+		return doc.ID, nil
 	}
-	return doc.ID, nil
+
+	// Keep the copy furthest into reading (pages run backwards, so the lowest
+	// CurrentPage), delete the rest, then swap the survivor's file.
+	keep := matches[0]
+	for _, n := range matches[1:] {
+		if n.Document.CurrentPage < keep.Document.CurrentPage {
+			keep = n
+		}
+	}
+	for _, n := range matches {
+		if n == keep {
+			continue
+		}
+		if err := ctx.DeleteEntry(n, false, true); err != nil {
+			return "", fmt.Errorf("remove stale %q: %w", name, err)
+		}
+	}
+	if err := ctx.ReplaceDocumentFile(keep.Document.ID, path, true); err != nil {
+		return "", fmt.Errorf("replace %q: %w", name, err)
+	}
+	return keep.Document.ID, nil
 }
