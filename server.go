@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+
+	"github.com/RX14/remarkable-manga/mangadex"
 )
 
 type subView struct {
@@ -17,8 +19,8 @@ type pageData struct {
 	Back    string // where Add returns to
 	Heading string
 	Query   string
-	Results []SearchResult
-	Authors []AuthorResult
+	Results []mangadex.SearchResult
+	Authors []mangadex.AuthorResult
 	Subs    []subView
 }
 
@@ -97,7 +99,7 @@ const pageHTML = `<!doctype html>
 
 // serve runs the subscription web UI. It is meant to sit behind a reverse proxy
 // (caddy handles TLS and auth upstream).
-func serve(addr string, mdx *Client, s *store) error {
+func serve(addr string, mdx *mangadex.Client, s *store) error {
 	tmpl := template.Must(template.New("page").Parse(pageHTML))
 	mux := http.NewServeMux()
 

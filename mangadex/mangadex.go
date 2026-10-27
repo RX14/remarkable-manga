@@ -1,5 +1,5 @@
 // mangadex.go: the slice of the MangaDex API this tool consumes (chapter metadata).
-package main
+package mangadex
 
 import (
 	"context"
@@ -207,21 +207,6 @@ func pickTitle(title map[string]string, altTitles []map[string]string) string {
 		}
 	}
 	return ""
-}
-
-// documentName is the on-device document name: "CH12 Series Name (Group)" —
-// the series name alone when the release has no chapter number, the scanlation
-// group label only when the release has one. Same name = the same release's
-// older revision (replaced on upload); different groups = different names (kept).
-func documentName(ch Chapter) string {
-	name := ch.SeriesName
-	if ch.Chapter != "" {
-		name = "CH" + ch.Chapter + " " + ch.SeriesName
-	}
-	if len(ch.Groups) > 0 {
-		name += " (" + strings.Join(ch.Groups, ", ") + ")"
-	}
-	return name
 }
 
 // FetchPageURLs resolves a chapter's page download URLs at original quality

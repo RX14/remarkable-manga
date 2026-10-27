@@ -14,8 +14,11 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"strings"
 	"time"
 
+	"github.com/RX14/remarkable-manga/mangadex"
+	"github.com/RX14/remarkable-manga/notify"
 	"github.com/juruen/rmapi/api"
 	_ "modernc.org/sqlite"
 )
@@ -93,7 +96,7 @@ func (s *store) markSent(chapterID string, version int) error {
 }
 
 // sendRun is one pass of the send loop over all subscriptions.
-func sendRun(mdx *Client, s *store) error {
+func sendRun(mdx *mangadex.Client, s *store, nt *notify.Telegram) error {
 	subs, err := s.subscriptions()
 	if err != nil {
 		return fmt.Errorf("load subscriptions: %w", err)
@@ -134,11 +137,10 @@ func sendRun(mdx *Client, s *store) error {
 				continue
 			}
 			time.Sleep(chapterDelay)
-			if err := sendChapter(ctx, mdx, rm, parent, ch); err != nil {
+			if err := sendChapter(ctx, mdx, rm, parent, nt, ch); err != nil {
 				slog.Error("send failed, will retry next run", "chapter", ch.ID, "err", err)
 				continue
 			}
-			slog.Info("chapter sent", "series", sub.name, "name", documentName(ch), "pages", ch.Pages, "version", ch.Version)
 			sent++
 			if err := s.markSent(ch.ID, ch.Version); err != nil {
 				return fmt.Errorf("mark sent: %w", err)
@@ -150,8 +152,24 @@ func sendRun(mdx *Client, s *store) error {
 	return nil
 }
 
-// sendChapter runs the per-chapter pipeline: pages → PDF → upload.
-func sendChapter(ctx context.Context, mdx *Client, rm api.ApiCtx, parent string, ch Chapter) error {
+// documentName is the on-device document name: "CH12 Series Name (Group)" —
+// the series name alone when the release has no chapter number, the scanlation
+// group label only when the release has one. Same name = the same release's
+// older revision (replaced on upload); different groups = different names (kept).
+func documentName(ch mangadex.Chapter) string {
+	name := ch.SeriesName
+	if ch.Chapter != "" {
+		name = "CH" + ch.Chapter + " " + ch.SeriesName
+	}
+	if len(ch.Groups) > 0 {
+		name += " (" + strings.Join(ch.Groups, ", ") + ")"
+	}
+	return name
+}
+
+// sendChapter runs the per-chapter pipeline: pages → PDF → upload, then reports
+// the delivery.
+func sendChapter(ctx context.Context, mdx *mangadex.Client, rm api.ApiCtx, parent string, nt *notify.Telegram, ch mangadex.Chapter) error {
 	urls, err := mdx.FetchPageURLs(ctx, ch.ID)
 	if err != nil {
 		return err
@@ -168,8 +186,15 @@ func sendChapter(ctx context.Context, mdx *Client, rm api.ApiCtx, parent string,
 	if err != nil {
 		return err
 	}
-	_, err = uploadPDF(rm, parent, documentName(ch), pdf, len(pages))
-	return err
+	name := documentName(ch)
+	if _, err := uploadPDF(rm, parent, name, pdf, len(pages)); err != nil {
+		return err
+	}
+	slog.Info("chapter sent", "series", ch.SeriesName, "name", name, "pages", ch.Pages, "version", ch.Version)
+	if err := nt.Notify(ctx, ch); err != nil {
+		slog.Warn("notify failed", "err", err)
+	}
+	return nil
 }
 
 func (s *store) addSubscription(mangaID, name string) error {

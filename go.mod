@@ -3,6 +3,7 @@ module github.com/RX14/remarkable-manga
 go 1.27
 
 require (
+	github.com/go-telegram/bot v1.27.0
 	github.com/google/uuid v1.6.0
 	github.com/juruen/rmapi v0.0.0-00010101000000-000000000000
 	github.com/pdfcpu/pdfcpu v0.16.0

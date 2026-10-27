@@ -9,6 +9,9 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/RX14/remarkable-manga/mangadex"
+	"github.com/RX14/remarkable-manga/notify"
 )
 
 func main() {
@@ -21,11 +24,18 @@ func main() {
 	if err != nil {
 		fatal(err)
 	}
-	mdx := NewClient()
+	mdx := mangadex.NewClient()
+	nt, err := notify.NewTelegram(os.Getenv("TELEGRAM_BOT_TOKEN"), os.Getenv("TELEGRAM_CHAT_ID"))
+	if err != nil {
+		fatal(err)
+	}
+	if nt == nil {
+		slog.Info("telegram notifications off: TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID not set")
+	}
 
 	go func() {
 		for {
-			if err := sendRun(mdx, s); err != nil {
+			if err := sendRun(mdx, s, nt); err != nil {
 				slog.Error("run failed", "err", err)
 			}
 			time.Sleep(pollEvery)
