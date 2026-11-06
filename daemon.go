@@ -156,6 +156,8 @@ func sendRun(mdx *mangadex.Client, s *store, nt *notify.Telegram) error {
 // the series name alone when the release has no chapter number, the scanlation
 // group label only when the release has one. Same name = the same release's
 // older revision (replaced on upload); different groups = different names (kept).
+// Slashes are converted to "／" (U+FF0F): the file is placed on disk in tmpfs
+// and therefore cannot contain "/"
 func documentName(ch mangadex.Chapter) string {
 	name := ch.SeriesName
 	if ch.Chapter != "" {
@@ -164,7 +166,7 @@ func documentName(ch mangadex.Chapter) string {
 	if len(ch.Groups) > 0 {
 		name += " (" + strings.Join(ch.Groups, ", ") + ")"
 	}
-	return name
+	return strings.ReplaceAll(name, "/", "／")
 }
 
 // sendChapter runs the per-chapter pipeline: pages → PDF → upload, then reports
